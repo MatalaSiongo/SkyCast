@@ -4,10 +4,12 @@
 //
 //  Created by Matala on 2026-08-19.
 //
-
 import SwiftUI
 
 struct ContentView: View {
+
+    @StateObject private var viewModel = WeatherViewModel()
+
     var body: some View {
         ZStack {
             LinearGradient(
@@ -19,42 +21,68 @@ struct ContentView: View {
 
             VStack(spacing: 24) {
 
-                Text("Stockholm")
-                    .font(.largeTitle)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.white)
+                if let weather = viewModel.weather {
 
-                Image(systemName: "cloud.sun.fill")
-                    .font(.system(size: 90))
-                    .foregroundStyle(.white)
+                    Text(weather.name)
+                        .font(.largeTitle)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.white)
 
-                Text("18°")
-                    .font(.system(size: 72, weight: .thin))
-                    .foregroundStyle(.white)
+                    Image(systemName: "cloud.sun.fill")
+                        .font(.system(size: 90))
+                        .foregroundStyle(.white)
 
-                Text("Partly Cloudy")
-                    .font(.title3)
-                    .foregroundStyle(.white.opacity(0.9))
+                    Text("\(Int(weather.main.temp))°")
+                        .font(.system(size: 72, weight: .thin))
+                        .foregroundStyle(.white)
 
-                HStack(spacing: 40) {
+                    Text(weather.weather.first?.description.capitalized ?? "Unknown")
+                        .font(.title3)
+                        .foregroundStyle(.white.opacity(0.9))
 
-                    WeatherInfoView(
-                        icon: "drop.fill",
-                        title: "Humidity",
-                        value: "72%"
-                    )
+                    HStack(spacing: 40) {
 
-                    WeatherInfoView(
-                        icon: "wind",
-                        title: "Wind",
-                        value: "12 km/h"
-                    )
+                        WeatherInfoView(
+                            icon: "drop.fill",
+                            title: "Humidity",
+                            value: "\(weather.main.humidity)%"
+                        )
+
+                        WeatherInfoView(
+                            icon: "wind",
+                            title: "Wind",
+                            value: "\(Int(weather.wind.speed)) m/s"
+                        )
+                    }
+                    .padding(.top, 20)
+
+                } else if viewModel.isLoading {
+
+                    ProgressView()
+                        .tint(.white)
+
+                    Text("Loading weather...")
+                        .foregroundStyle(.white)
+
+                } else if let errorMessage = viewModel.errorMessage {
+
+                    Text(errorMessage)
+                        .foregroundStyle(.white)
+
+                } else {
+
+                    Text("SkyCast")
+                        .font(.largeTitle)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.white)
                 }
-                .padding(.top, 20)
 
                 Spacer()
             }
             .padding(.top, 80)
+        }
+        .task {
+            await viewModel.fetchWeather(for: "Stockholm")
         }
     }
 }
