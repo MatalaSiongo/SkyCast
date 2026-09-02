@@ -6,34 +6,54 @@
 import Foundation
 
 final class WeatherService {
-    
-    private let apiKey = "YOUR_API_KEY"
-    
+
+    private var apiKey: String {
+        Bundle.main.object(
+            forInfoDictionaryKey: "OPENWEATHER_API_KEY"
+        ) as? String ?? ""
+    }
+
     func fetchWeather(for city: String) async throws -> WeatherResponse {
-        
+
         let cityName = city.addingPercentEncoding(
             withAllowedCharacters: .urlQueryAllowed
         ) ?? city
-        
+
         let urlString =
             "https://api.openweathermap.org/data/2.5/weather?q=\(cityName)&appid=\(apiKey)&units=metric"
-        
+
         guard let url = URL(string: urlString) else {
+            print("Invalid URL")
             throw URLError(.badURL)
         }
-        
+
+        print("Requesting weather for:", city)
+
         let (data, response) = try await URLSession.shared.data(from: url)
-        
-        guard let httpResponse = response as? HTTPURLResponse,
-              httpResponse.statusCode == 200 else {
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            print("No HTTP response")
             throw URLError(.badServerResponse)
         }
-        
-        let weatherResponse = try JSONDecoder().decode(
-            WeatherResponse.self,
-            from: data
-        )
-        
-        return weatherResponse
+
+        print("HTTP Status:", httpResponse.statusCode)
+
+        if let responseText = String(data: data, encoding: .utf8) {
+            print("API Response:", responseText)
+        }
+
+        guard httpResponse.statusCode == 200 else {
+            throw URLError(.badServerResponse)
+        }
+
+        do {
+            return try JSONDecoder().decode(
+                WeatherResponse.self,
+                from: data
+            )
+        } catch {
+            print("Decoding error:", error)
+            throw error
+        }
     }
 }
