@@ -14,73 +14,123 @@ struct ContentView: View {
     @State private var selectedDayIndex = 0
 
     var body: some View {
+
         ZStack {
 
-            weatherBackground
-                .ignoresSafeArea()
+            // MARK: - Weather Tab
 
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 14) {
+            if selectedTab == 0 {
 
-                    searchBar
+                weatherBackground
+                    .ignoresSafeArea()
 
-                    if viewModel.isLoading && viewModel.weather == nil {
+                ScrollView(showsIndicators: false) {
 
-                        loadingView
+                    VStack(spacing: 14) {
 
-                    } else if let weather = viewModel.weather {
+                        searchBar
 
-                        cityHeader(weather)
+                        if viewModel.isLoading &&
+                            viewModel.weather == nil {
 
-                        if let forecast = viewModel.forecast {
+                            loadingView
 
-                            SelectedWeatherCard(
+                        } else if let weather = viewModel.weather {
+
+                            cityHeader(weather)
+
+                            if let forecast = viewModel.forecast {
+
+                                SelectedWeatherCard(
+                                    weather: weather,
+                                    forecast: forecast,
+                                    airQuality: viewModel.airQuality,
+                                    selectedDayIndex: selectedDayIndex
+                                )
+
+                                HourlyForecastCard(
+                                    forecast: forecast,
+                                    selectedDayIndex: selectedDayIndex
+                                )
+
+                                WeeklyForecastCard(
+                                    forecast: forecast,
+                                    selectedDayIndex: $selectedDayIndex
+                                )
+
+                            } else {
+
+                                CurrentWeatherCard(
+                                    weather: weather,
+                                    airQuality: viewModel.airQuality
+                                )
+                            }
+
+                            WeatherDetailsCard(
                                 weather: weather,
-                                forecast: forecast,
-                                airQuality: viewModel.airQuality,
-                                selectedDayIndex: selectedDayIndex
+                                forecast: viewModel.forecast,
+                                airQuality: viewModel.airQuality
                             )
 
-                            HourlyForecastCard(
-                                forecast: forecast,
-                                selectedDayIndex: selectedDayIndex
-                            )
+                        } else if let errorMessage =
+                                    viewModel.errorMessage {
 
-                            WeeklyForecastCard(
-                                forecast: forecast,
-                                selectedDayIndex: $selectedDayIndex
-                            )
+                            errorView(errorMessage)
 
                         } else {
 
-                            CurrentWeatherCard(
-                                weather: weather,
-                                airQuality: viewModel.airQuality
-                            )
+                            welcomeView
                         }
 
-                        WeatherDetailsCard(
-                            weather: weather,
-                            forecast: viewModel.forecast,
-                            airQuality: viewModel.airQuality
-                        )
-
-                    } else if let errorMessage = viewModel.errorMessage {
-
-                        errorView(errorMessage)
-
-                    } else {
-
-                        welcomeView
+                        Spacer(minLength: 100)
                     }
-
-                    Spacer(minLength: 100)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 10)
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 10)
+
+            // MARK: - Locations Tab
+
+            } else if selectedTab == 1 {
+
+                SavedLocationsView { selectedCity in
+
+                    city = selectedCity
+                    selectedDayIndex = 0
+                    selectedTab = 0
+
+                    Task {
+
+                        await viewModel.fetchWeather(
+                            for: selectedCity
+                        )
+                    }
+                }
+
+            // MARK: - Map Tab
+
+            } else if selectedTab == 2 {
+
+                placeholderScreen(
+                    icon: "map.fill",
+                    title: "Weather Map",
+                    message: "Interactive weather map coming soon."
+                )
+
+            // MARK: - Settings Tab
+
+            } else {
+
+                placeholderScreen(
+                    icon: "gearshape.fill",
+                    title: "Settings",
+                    message: "SkyCast settings coming soon."
+                )
             }
 
+            // MARK: - Bottom Navigation
+
             VStack {
+
                 Spacer()
 
                 BottomWeatherTabBar(
@@ -89,7 +139,53 @@ struct ContentView: View {
             }
         }
         .task {
-            await viewModel.fetchWeather(for: "Stockholm")
+
+            await viewModel.fetchWeather(
+                for: "Stockholm"
+            )
+        }
+    }
+}
+
+
+// MARK: - Placeholder Screens
+
+private extension ContentView {
+
+    func placeholderScreen(
+        icon: String,
+        title: String,
+        message: String
+    ) -> some View {
+
+        ZStack {
+
+            LinearGradient(
+                colors: [
+                    Color.blue,
+                    Color.cyan,
+                    Color.indigo.opacity(0.8)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+
+            VStack(spacing: 18) {
+
+                Image(systemName: icon)
+                    .font(.system(size: 58))
+
+                Text(title)
+                    .font(.largeTitle.bold())
+
+                Text(message)
+                    .font(.subheadline)
+                    .foregroundStyle(
+                        .white.opacity(0.75)
+                    )
+            }
+            .foregroundStyle(.white)
         }
     }
 }
@@ -106,42 +202,63 @@ private extension ContentView {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(.white.opacity(0.9))
 
-            TextField("Search city...", text: $city)
-                .foregroundStyle(.white)
-                .submitLabel(.search)
-                .onSubmit {
-                    search()
-                }
+            TextField(
+                "Search city...",
+                text: $city
+            )
+            .foregroundStyle(.white)
+            .submitLabel(.search)
+            .onSubmit {
+
+                search()
+            }
 
             if !city.isEmpty {
+
                 Button {
+
                     city = ""
+
                 } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.white.opacity(0.75))
+
+                    Image(
+                        systemName: "xmark.circle.fill"
+                    )
+                    .foregroundStyle(
+                        .white.opacity(0.75)
+                    )
                 }
             }
 
             Button {
+
                 search()
+
             } label: {
-                Image(systemName: "arrow.right.circle.fill")
-                    .font(.title2)
-                    .foregroundStyle(.white)
+
+                Image(
+                    systemName: "arrow.right.circle.fill"
+                )
+                .font(.title2)
+                .foregroundStyle(.white)
             }
         }
         .padding(.horizontal, 16)
         .frame(height: 52)
         .background(.ultraThinMaterial)
         .clipShape(
-            RoundedRectangle(cornerRadius: 22)
+            RoundedRectangle(
+                cornerRadius: 22
+            )
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 22)
-                .stroke(
-                    .white.opacity(0.30),
-                    lineWidth: 1
-                )
+            RoundedRectangle(
+                cornerRadius: 22
+            )
+            .stroke(
+                .white.opacity(0.30),
+                lineWidth: 1
+            )
         )
     }
 
@@ -159,6 +276,7 @@ private extension ContentView {
         selectedDayIndex = 0
 
         Task {
+
             await viewModel.fetchWeather(
                 for: trimmedCity
             )
@@ -181,10 +299,12 @@ private extension ContentView {
         ) {
 
             Text(weather.name)
-                .font(.system(
-                    size: 38,
-                    weight: .bold
-                ))
+                .font(
+                    .system(
+                        size: 38,
+                        weight: .bold
+                    )
+                )
                 .foregroundStyle(.white)
 
             Text(
@@ -351,6 +471,7 @@ private extension ContentView {
 struct CurrentWeatherCard: View {
 
     let weather: WeatherResponse
+
     let airQuality: AirQualityResponse?
 
     var body: some View {
@@ -486,28 +607,34 @@ struct CurrentWeatherCard: View {
             ?? ""
 
         if condition.contains("clear") {
+
             return "sun.max.fill"
         }
 
         if condition.contains("cloud") {
+
             return "cloud.sun.fill"
         }
 
         if condition.contains("rain") ||
             condition.contains("drizzle") {
+
             return "cloud.rain.fill"
         }
 
         if condition.contains("snow") {
+
             return "cloud.snow.fill"
         }
 
         if condition.contains("thunder") {
+
             return "cloud.bolt.rain.fill"
         }
 
         if condition.contains("mist") ||
             condition.contains("fog") {
+
             return "cloud.fog.fill"
         }
 
@@ -521,8 +648,11 @@ struct CurrentWeatherCard: View {
 struct SelectedWeatherCard: View {
 
     let weather: WeatherResponse
+
     let forecast: ForecastResponse
+
     let airQuality: AirQualityResponse?
+
     let selectedDayIndex: Int
 
     var body: some View {
@@ -573,7 +703,9 @@ struct SelectedWeatherCard: View {
 
                     Image(
                         systemName:
-                            weatherIcon(weatherCode)
+                            weatherIcon(
+                                weatherCode
+                            )
                     )
                     .font(
                         .system(size: 48)
@@ -637,6 +769,7 @@ struct SelectedWeatherCard: View {
             selectedDayIndex
                 < forecast.daily.time.count
         else {
+
             return ""
         }
 
@@ -651,6 +784,7 @@ struct SelectedWeatherCard: View {
             selectedDayIndex
                 < forecast.daily.weatherCode.count
         else {
+
             return 0
         }
 
@@ -665,6 +799,7 @@ struct SelectedWeatherCard: View {
             selectedDayIndex
                 < forecast.daily.temperature2mMax.count
         else {
+
             return 0
         }
 
@@ -679,6 +814,7 @@ struct SelectedWeatherCard: View {
             selectedDayIndex
                 < forecast.daily.temperature2mMin.count
         else {
+
             return 0
         }
 
@@ -693,6 +829,7 @@ struct SelectedWeatherCard: View {
             selectedDayIndex
                 < forecast.daily.precipitationProbabilityMax.count
         else {
+
             return 0
         }
 
@@ -708,6 +845,7 @@ struct SelectedWeatherCard: View {
 struct HourlyForecastCard: View {
 
     let forecast: ForecastResponse
+
     let selectedDayIndex: Int
 
     var body: some View {
@@ -748,13 +886,10 @@ struct HourlyForecastCard: View {
                                 displayHour(
                                     forecast.hourly.time[index]
                                 ),
-
                             temperature:
                                 forecast.hourly.temperature2m[index],
-
                             precipitation:
                                 forecast.hourly.precipitationProbability[index],
-
                             weatherCode:
                                 forecast.hourly.weatherCode[index]
                         )
@@ -773,6 +908,7 @@ struct HourlyForecastCard: View {
             selectedDayIndex
                 < forecast.daily.time.count
         else {
+
             return ""
         }
 
@@ -807,8 +943,11 @@ struct HourlyForecastCard: View {
 struct HourlyWeatherItem: View {
 
     let time: String
+
     let temperature: Double
+
     let precipitation: Int
+
     let weatherCode: Int
 
     var body: some View {
@@ -900,9 +1039,13 @@ struct WeeklyForecastCard: View {
                         Button {
 
                             withAnimation(
-                                .easeInOut(duration: 0.25)
+                                .easeInOut(
+                                    duration: 0.25
+                                )
                             ) {
-                                selectedDayIndex = index
+
+                                selectedDayIndex =
+                                    index
                             }
 
                         } label: {
@@ -910,16 +1053,12 @@ struct WeeklyForecastCard: View {
                             DailyForecastItem(
                                 date:
                                     forecast.daily.time[index],
-
                                 code:
                                     forecast.daily.weatherCode[index],
-
                                 maxTemperature:
                                     forecast.daily.temperature2mMax[index],
-
                                 minTemperature:
                                     forecast.daily.temperature2mMin[index],
-
                                 selected:
                                     selectedDayIndex == index
                             )
@@ -952,9 +1091,13 @@ struct WeeklyForecastCard: View {
 struct DailyForecastItem: View {
 
     let date: String
+
     let code: Int
+
     let maxTemperature: Double
+
     let minTemperature: Double
+
     let selected: Bool
 
     var body: some View {
@@ -994,8 +1137,8 @@ struct DailyForecastItem: View {
         .background(
             .white.opacity(
                 selected
-                ? 0.18
-                : 0.08
+                    ? 0.18
+                    : 0.08
             )
         )
         .clipShape(
@@ -1025,7 +1168,9 @@ struct DailyForecastItem: View {
 struct WeatherDetailsCard: View {
 
     let weather: WeatherResponse
+
     let forecast: ForecastResponse?
+
     let airQuality: AirQualityResponse?
 
     var body: some View {
@@ -1104,6 +1249,7 @@ struct WeatherDetailsCard: View {
                 .current
                 .europeanAqi
         else {
+
             return "--"
         }
 
@@ -1115,7 +1261,9 @@ struct WeatherDetailsCard: View {
 struct WeatherMetricCard: View {
 
     let icon: String
+
     let title: String
+
     let value: String
 
     var body: some View {
@@ -1167,9 +1315,13 @@ struct BottomWeatherTabBar: View {
     @Binding var selectedTab: Int
 
     private let tabs = [
+
         ("cloud.fill", "Weather"),
+
         ("location.fill", "Locations"),
+
         ("map.fill", "Map"),
+
         ("gearshape.fill", "Settings")
     ]
 
@@ -1203,8 +1355,8 @@ struct BottomWeatherTabBar: View {
                     }
                     .foregroundStyle(
                         selectedTab == index
-                        ? .white
-                        : .white.opacity(0.65)
+                            ? .white
+                            : .white.opacity(0.65)
                     )
                     .frame(
                         maxWidth: .infinity
@@ -1299,36 +1451,47 @@ func weatherIcon(
     switch code {
 
     case 0:
+
         return "sun.max.fill"
 
     case 1, 2:
+
         return "cloud.sun.fill"
 
     case 3:
+
         return "cloud.fill"
 
     case 45, 48:
+
         return "cloud.fog.fill"
 
     case 51...57:
+
         return "cloud.drizzle.fill"
 
     case 61...67:
+
         return "cloud.rain.fill"
 
     case 71...77:
+
         return "cloud.snow.fill"
 
     case 80...82:
+
         return "cloud.heavyrain.fill"
 
     case 85, 86:
+
         return "cloud.snow.fill"
 
     case 95...99:
+
         return "cloud.bolt.rain.fill"
 
     default:
+
         return "cloud.fill"
     }
 }
@@ -1349,6 +1512,7 @@ func displayHour(
             from: rawDate
         )
     else {
+
         return rawDate
     }
 
@@ -1376,6 +1540,7 @@ func weekday(
             from: rawDate
         )
     else {
+
         return rawDate
     }
 
@@ -1403,6 +1568,7 @@ func weekdayFull(
             from: rawDate
         )
     else {
+
         return rawDate
     }
 
@@ -1422,39 +1588,51 @@ func weatherDescription(
     switch code {
 
     case 0:
+
         return "Clear Sky"
 
     case 1:
+
         return "Mostly Clear"
 
     case 2:
+
         return "Partly Cloudy"
 
     case 3:
+
         return "Overcast"
 
     case 45, 48:
+
         return "Fog"
 
     case 51...57:
+
         return "Drizzle"
 
     case 61...67:
+
         return "Rain"
 
     case 71...77:
+
         return "Snow"
 
     case 80...82:
+
         return "Rain Showers"
 
     case 85, 86:
+
         return "Snow Showers"
 
     case 95...99:
+
         return "Thunderstorm"
 
     default:
+
         return "Unknown"
     }
 }
@@ -1467,21 +1645,27 @@ func airQualityText(
     switch aqi {
 
     case 0...20:
+
         return "Good"
 
     case 21...40:
+
         return "Fair"
 
     case 41...60:
+
         return "Moderate"
 
     case 61...80:
+
         return "Poor"
 
     case 81...100:
+
         return "Very Poor"
 
     default:
+
         return "Extremely Poor"
     }
 }
@@ -1494,23 +1678,29 @@ func airQualityColor(
     switch aqi {
 
     case 0...20:
+
         return .green
 
     case 21...40:
+
         return .mint
 
     case 41...60:
+
         return .yellow
 
     case 61...80:
+
         return .orange
 
     default:
+
         return .red
     }
 }
 
 
 #Preview {
+
     ContentView()
 }
