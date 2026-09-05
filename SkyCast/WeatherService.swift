@@ -13,20 +13,14 @@ final class WeatherService {
         ) as? String ?? ""
     }
 
-    func fetchWeather(for city: String) async throws -> WeatherResponse {
+    func fetchWeather(
+        for city: String
+    ) async throws -> WeatherResponse {
 
-        // Temporary debugging
-        print("API key empty:", apiKey.isEmpty)
-        print("API key placeholder:", apiKey == "$(OPENWEATHER_API_KEY)")
-
-        guard !apiKey.isEmpty else {
-            print("ERROR: OpenWeather API key is missing.")
-            throw URLError(.userAuthenticationRequired)
-        }
-
-        let cityName = city.addingPercentEncoding(
-            withAllowedCharacters: .urlQueryAllowed
-        ) ?? city
+        let cityName =
+            city.addingPercentEncoding(
+                withAllowedCharacters: .urlQueryAllowed
+            ) ?? city
 
         let urlString =
             "https://api.openweathermap.org/data/2.5/weather?q=\(cityName)&appid=\(apiKey)&units=metric"
@@ -35,27 +29,79 @@ final class WeatherService {
             throw URLError(.badURL)
         }
 
-        let (data, response) = try await URLSession.shared.data(from: url)
+        let (data, response) =
+            try await URLSession.shared.data(from: url)
 
-        if let httpResponse = response as? HTTPURLResponse {
-            print("HTTP Status:", httpResponse.statusCode)
-        }
-
-        print(
-            "API Response:",
-            String(data: data, encoding: .utf8) ?? "Unable to read response"
-        )
-
-        guard let httpResponse = response as? HTTPURLResponse,
-              httpResponse.statusCode == 200 else {
+        guard
+            let httpResponse = response as? HTTPURLResponse,
+            httpResponse.statusCode == 200
+        else {
             throw URLError(.badServerResponse)
         }
 
-        let weatherResponse = try JSONDecoder().decode(
+        return try JSONDecoder().decode(
             WeatherResponse.self,
             from: data
         )
+    }
 
-        return weatherResponse
+    func fetchForecast(
+        latitude: Double,
+        longitude: Double
+    ) async throws -> ForecastResponse {
+
+        let urlString =
+        """
+        https://api.open-meteo.com/v1/forecast?latitude=\(latitude)&longitude=\(longitude)&hourly=temperature_2m,apparent_temperature,precipitation_probability,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=7
+        """
+
+        guard let url = URL(string: urlString) else {
+            throw URLError(.badURL)
+        }
+
+        let (data, response) =
+            try await URLSession.shared.data(from: url)
+
+        guard
+            let httpResponse = response as? HTTPURLResponse,
+            httpResponse.statusCode == 200
+        else {
+            throw URLError(.badServerResponse)
+        }
+
+        return try JSONDecoder().decode(
+            ForecastResponse.self,
+            from: data
+        )
+    }
+
+    func fetchAirQuality(
+        latitude: Double,
+        longitude: Double
+    ) async throws -> AirQualityResponse {
+
+        let urlString =
+        """
+        https://air-quality-api.open-meteo.com/v1/air-quality?latitude=\(latitude)&longitude=\(longitude)&current=european_aqi
+        """
+
+        guard let url = URL(string: urlString) else {
+            throw URLError(.badURL)
+        }
+
+        let (data, response) =
+            try await URLSession.shared.data(from: url)
+
+        guard
+            let httpResponse = response as? HTTPURLResponse,
+            httpResponse.statusCode == 200
+        else {
+            throw URLError(.badServerResponse)
+        }
+
+        return try JSONDecoder().decode(
+            AirQualityResponse.self,
+            from: data
+        )
     }
 }
