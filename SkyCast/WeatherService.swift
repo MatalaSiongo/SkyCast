@@ -15,6 +15,15 @@ final class WeatherService {
 
     func fetchWeather(for city: String) async throws -> WeatherResponse {
 
+        // Temporary debugging
+        print("API key empty:", apiKey.isEmpty)
+        print("API key placeholder:", apiKey == "$(OPENWEATHER_API_KEY)")
+
+        guard !apiKey.isEmpty else {
+            print("ERROR: OpenWeather API key is missing.")
+            throw URLError(.userAuthenticationRequired)
+        }
+
         let cityName = city.addingPercentEncoding(
             withAllowedCharacters: .urlQueryAllowed
         ) ?? city
@@ -23,37 +32,30 @@ final class WeatherService {
             "https://api.openweathermap.org/data/2.5/weather?q=\(cityName)&appid=\(apiKey)&units=metric"
 
         guard let url = URL(string: urlString) else {
-            print("Invalid URL")
             throw URLError(.badURL)
         }
 
-        print("Requesting weather for:", city)
-
         let (data, response) = try await URLSession.shared.data(from: url)
 
-        guard let httpResponse = response as? HTTPURLResponse else {
-            print("No HTTP response")
+        if let httpResponse = response as? HTTPURLResponse {
+            print("HTTP Status:", httpResponse.statusCode)
+        }
+
+        print(
+            "API Response:",
+            String(data: data, encoding: .utf8) ?? "Unable to read response"
+        )
+
+        guard let httpResponse = response as? HTTPURLResponse,
+              httpResponse.statusCode == 200 else {
             throw URLError(.badServerResponse)
         }
 
-        print("HTTP Status:", httpResponse.statusCode)
+        let weatherResponse = try JSONDecoder().decode(
+            WeatherResponse.self,
+            from: data
+        )
 
-        if let responseText = String(data: data, encoding: .utf8) {
-            print("API Response:", responseText)
-        }
-
-        guard httpResponse.statusCode == 200 else {
-            throw URLError(.badServerResponse)
-        }
-
-        do {
-            return try JSONDecoder().decode(
-                WeatherResponse.self,
-                from: data
-            )
-        } catch {
-            print("Decoding error:", error)
-            throw error
-        }
+        return weatherResponse
     }
 }
