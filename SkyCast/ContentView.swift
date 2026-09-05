@@ -9,6 +9,7 @@ import SwiftUI
 struct ContentView: View {
 
     @StateObject private var viewModel = WeatherViewModel()
+    @State private var city = ""
 
     var body: some View {
         ZStack {
@@ -20,7 +21,29 @@ struct ContentView: View {
             .ignoresSafeArea()
 
             VStack(spacing: 24) {
+                 
+                HStack {
+                    TextField("Search city...", text: $city)
+                        .textFieldStyle(.roundedBorder)
+                        .submitLabel(.search)
+                        .onSubmit {
+                            Task {
+                                await viewModel.fetchWeather(for: city)
+                            }
+                        }
 
+                    Button {
+                        Task {
+                            await viewModel.fetchWeather(for: city)
+                        }
+                    } label: {
+                        // We'll connect the API here next
+                        Image(systemName: "magnifyingglass")
+                            .font(.title2)
+                            .foregroundStyle(.white)
+                    }
+                }
+                .padding(.horizontal)
                 if let weather = viewModel.weather {
 
                     Text(weather.name)
