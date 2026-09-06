@@ -4,5 +4,7 @@
 <dict>
 	<key>OPENWEATHER_API_KEY</key>
 	<string>$(OPENWEATHER_API_KEY)</string>
+	<key>PEXELS_API_KEY</key>
+	<string>$(PEXELS_API_KEY)</string>
 </dict>
 </plist>

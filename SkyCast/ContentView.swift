@@ -31,6 +31,7 @@ struct ContentView: View {
     private var showAirQuality = true
 
     var body: some View {
+
         ZStack {
 
             // MARK: - Weather Tab
@@ -38,9 +39,9 @@ struct ContentView: View {
             if selectedTab == 0 {
 
                 weatherBackground
-                    .ignoresSafeArea()
 
                 ScrollView(showsIndicators: false) {
+
                     VStack(spacing: 14) {
 
                         searchBar
@@ -101,6 +102,10 @@ struct ContentView: View {
                                 showAirQuality: showAirQuality
                             )
 
+                            if let cityImage = viewModel.cityImage {
+                                photoAttribution(cityImage)
+                            }
+
                         } else if let errorMessage =
                                     viewModel.errorMessage {
 
@@ -111,8 +116,10 @@ struct ContentView: View {
                             welcomeView
                         }
 
-                        Spacer(minLength: 100)
+                        // Space for floating bottom navigation
+                        Spacer(minLength: 130)
                     }
+                    .frame(maxWidth: .infinity)
                     .padding(.horizontal, 16)
                     .padding(.top, 10)
                 }
@@ -122,11 +129,13 @@ struct ContentView: View {
             } else if selectedTab == 1 {
 
                 SavedLocationsView { selectedCity in
+
                     city = selectedCity
                     selectedDayIndex = 0
                     selectedTab = 0
 
                     Task {
+
                         await viewModel.fetchWeather(
                             for: selectedCity
                         )
@@ -149,6 +158,7 @@ struct ContentView: View {
             // MARK: - Bottom Navigation
 
             VStack {
+
                 Spacer()
 
                 BottomWeatherTabBar(
@@ -158,7 +168,9 @@ struct ContentView: View {
         }
         .preferredColorScheme(selectedColorScheme)
         .task {
+
             if viewModel.weather == nil {
+
                 await viewModel.fetchWeather(
                     for: "Stockholm"
                 )
@@ -167,23 +179,27 @@ struct ContentView: View {
     }
 }
 
+
 // MARK: - Settings Helpers
 
 private extension ContentView {
 
     var selectedTemperatureUnit: TemperatureUnit {
+
         TemperatureUnit(
             rawValue: temperatureUnit
         ) ?? .celsius
     }
 
     var selectedWindSpeedUnit: WindSpeedUnit {
+
         WindSpeedUnit(
             rawValue: windSpeedUnit
         ) ?? .metersPerSecond
     }
 
     var selectedColorScheme: ColorScheme? {
+
         switch AppAppearance(
             rawValue: appearance
         ) ?? .system {
@@ -199,6 +215,7 @@ private extension ContentView {
         }
     }
 }
+
 
 // MARK: - Map
 
@@ -222,12 +239,14 @@ private extension ContentView {
                 latitude: forecast.latitude,
                 longitude: forecast.longitude
             ) {
+
                 selectedTab = 0
             }
 
         } else {
 
             ZStack {
+
                 LinearGradient(
                     colors: [
                         Color.blue,
@@ -240,14 +259,18 @@ private extension ContentView {
                 .ignoresSafeArea()
 
                 VStack(spacing: 16) {
+
                     if viewModel.isLoading {
+
                         ProgressView()
                             .scaleEffect(1.3)
                             .tint(.white)
 
                         Text("Preparing weather map...")
                             .foregroundStyle(.white)
+
                     } else {
+
                         Image(systemName: "map.fill")
                             .font(.system(size: 58))
 
@@ -264,8 +287,11 @@ private extension ContentView {
                         )
 
                         Button {
+
                             selectedTab = 0
+
                         } label: {
+
                             Label(
                                 "Go to Weather",
                                 systemImage: "cloud.sun.fill"
@@ -285,11 +311,13 @@ private extension ContentView {
     }
 }
 
+
 // MARK: - Search
 
 private extension ContentView {
 
     var searchBar: some View {
+
         HStack(spacing: 12) {
 
             Image(systemName: "magnifyingglass")
@@ -304,13 +332,18 @@ private extension ContentView {
             .foregroundStyle(.white)
             .submitLabel(.search)
             .onSubmit {
+
                 search()
             }
 
             if !city.isEmpty {
+
                 Button {
+
                     city = ""
+
                 } label: {
+
                     Image(
                         systemName:
                             "xmark.circle.fill"
@@ -322,8 +355,11 @@ private extension ContentView {
             }
 
             Button {
+
                 search()
+
             } label: {
+
                 Image(
                     systemName:
                         "arrow.right.circle.fill"
@@ -333,6 +369,9 @@ private extension ContentView {
             }
         }
         .padding(.horizontal, 16)
+        .frame(
+            maxWidth: .infinity
+        )
         .frame(height: 52)
         .background(.ultraThinMaterial)
         .clipShape(
@@ -365,12 +404,14 @@ private extension ContentView {
         selectedDayIndex = 0
 
         Task {
+
             await viewModel.fetchWeather(
                 for: trimmedCity
             )
         }
     }
 }
+
 
 // MARK: - City Header
 
@@ -392,7 +433,15 @@ private extension ContentView {
                         weight: .bold
                     )
                 )
+                .lineLimit(1)
+                .minimumScaleFactor(0.65)
                 .foregroundStyle(.white)
+                .shadow(
+                    color: .black.opacity(0.35),
+                    radius: 6,
+                    x: 0,
+                    y: 2
+                )
 
             Text(
                 Date.now.formatted(
@@ -404,7 +453,13 @@ private extension ContentView {
             )
             .font(.title3)
             .foregroundStyle(
-                .white.opacity(0.85)
+                .white.opacity(0.9)
+            )
+            .shadow(
+                color: .black.opacity(0.30),
+                radius: 4,
+                x: 0,
+                y: 2
             )
         }
         .frame(
@@ -415,27 +470,133 @@ private extension ContentView {
     }
 }
 
-// MARK: - Background
+
+// MARK: - Dynamic City Background
 
 private extension ContentView {
 
     var weatherBackground: some View {
 
-        let condition =
-            viewModel.weather?
-                .weather
-                .first?
-                .main
-                .lowercased()
-            ?? ""
+        GeometryReader { geometry in
 
-        return LinearGradient(
-            colors: backgroundColors(
-                for: condition
-            ),
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
+            ZStack {
+
+                LinearGradient(
+                    colors: backgroundColors(
+                        for: currentWeatherCondition
+                    ),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+
+                if let cityImage = viewModel.cityImage {
+
+                    AsyncImage(
+                        url: cityImage.imageURL
+                    ) { phase in
+
+                        switch phase {
+
+                        case .empty:
+
+                            LinearGradient(
+                                colors: backgroundColors(
+                                    for: currentWeatherCondition
+                                ),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+
+                        case .success(let image):
+
+                            image
+                                .resizable()
+                                .scaledToFill()
+                                .frame(
+                                    width: geometry.size.width,
+                                    height: geometry.size.height
+                                )
+                                .clipped()
+
+                        case .failure:
+
+                            LinearGradient(
+                                colors: backgroundColors(
+                                    for: currentWeatherCondition
+                                ),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+
+                        @unknown default:
+
+                            Color.clear
+                        }
+                    }
+                    .frame(
+                        width: geometry.size.width,
+                        height: geometry.size.height
+                    )
+                    .clipped()
+
+                    cityPhotoOverlay
+                        .frame(
+                            width: geometry.size.width,
+                            height: geometry.size.height
+                        )
+                }
+            }
+            .frame(
+                width: geometry.size.width,
+                height: geometry.size.height
+            )
+            .clipped()
+        }
+        .ignoresSafeArea()
+        .animation(
+            .easeInOut(duration: 0.5),
+            value: viewModel.cityImage?.imageURL
         )
+    }
+
+    var cityPhotoOverlay: some View {
+
+        ZStack {
+
+            Color.black
+                .opacity(0.18)
+
+            LinearGradient(
+                colors: [
+                    Color.black.opacity(0.32),
+                    Color.black.opacity(0.08),
+                    Color.black.opacity(0.20),
+                    Color.black.opacity(0.48)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+
+            LinearGradient(
+                colors: [
+                    Color.blue.opacity(0.12),
+                    Color.clear,
+                    Color.indigo.opacity(0.16)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        }
+    }
+
+    var currentWeatherCondition: String {
+
+        viewModel.weather?
+            .weather
+            .first?
+            .main
+            .lowercased()
+        ?? ""
     }
 
     func backgroundColors(
@@ -487,6 +648,74 @@ private extension ContentView {
         ]
     }
 }
+
+
+// MARK: - Pexels Attribution
+
+private extension ContentView {
+
+    func photoAttribution(
+        _ cityImage: CityImage
+    ) -> some View {
+
+        HStack(spacing: 4) {
+
+            Image(systemName: "camera.fill")
+                .font(.caption2)
+
+            Text("Photo by")
+
+            if let photographerURL =
+                cityImage.photographerURL {
+
+                Link(
+                    cityImage.photographerName,
+                    destination: photographerURL
+                )
+                .fontWeight(.semibold)
+
+            } else {
+
+                Text(cityImage.photographerName)
+                    .fontWeight(.semibold)
+            }
+
+            Text("on")
+
+            if let pexelsURL =
+                cityImage.pexelsURL {
+
+                Link(
+                    "Pexels",
+                    destination: pexelsURL
+                )
+                .fontWeight(.semibold)
+
+            } else {
+
+                Text("Pexels")
+                    .fontWeight(.semibold)
+            }
+        }
+        .lineLimit(1)
+        .minimumScaleFactor(0.75)
+        .font(.caption)
+        .foregroundStyle(
+            .white.opacity(0.88)
+        )
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(
+            .black.opacity(0.25)
+        )
+        .clipShape(Capsule())
+        .frame(
+            maxWidth: .infinity,
+            alignment: .center
+        )
+    }
+}
+
 
 // MARK: - Loading / Error
 
@@ -550,6 +779,7 @@ private extension ContentView {
     }
 }
 
+
 // MARK: - Current Weather Card
 
 struct CurrentWeatherCard: View {
@@ -560,7 +790,7 @@ struct CurrentWeatherCard: View {
 
     var body: some View {
 
-        HStack(spacing: 16) {
+        HStack(spacing: 12) {
 
             VStack(
                 alignment: .leading,
@@ -573,7 +803,7 @@ struct CurrentWeatherCard: View {
                         .white.opacity(0.85)
                     )
 
-                HStack(spacing: 10) {
+                HStack(spacing: 8) {
 
                     Text(
                         temperatureText(
@@ -582,17 +812,18 @@ struct CurrentWeatherCard: View {
                     )
                     .font(
                         .system(
-                            size: 64,
+                            size: 54,
                             weight: .bold
                         )
                     )
+                    .minimumScaleFactor(0.8)
 
                     Image(
                         systemName:
                             currentWeatherIcon
                     )
                     .font(
-                        .system(size: 52)
+                        .system(size: 42)
                     )
                     .symbolRenderingMode(
                         .multicolor
@@ -608,26 +839,30 @@ struct CurrentWeatherCard: View {
                     ?? "Unknown"
                 )
                 .font(.title3)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
             }
+            .layoutPriority(1)
 
-            Spacer()
+            Spacer(minLength: 4)
 
             Divider()
                 .background(
                     .white.opacity(0.35)
                 )
-                .frame(height: 105)
+                .frame(height: 100)
 
             VStack(
                 alignment: .leading,
-                spacing: 10
+                spacing: 9
             ) {
 
                 Text(
                     "Feels like \(temperatureText(weather.main.feelsLike))"
                 )
+                .lineLimit(1)
 
-                HStack(spacing: 14) {
+                HStack(spacing: 8) {
 
                     Text(
                         "H: \(temperatureText(weather.main.tempMax))"
@@ -676,9 +911,11 @@ struct CurrentWeatherCard: View {
                 }
             }
             .font(.subheadline)
+            .minimumScaleFactor(0.8)
         }
+        .frame(maxWidth: .infinity)
         .foregroundStyle(.white)
-        .padding(20)
+        .padding(18)
         .glassCard()
     }
 
@@ -737,6 +974,7 @@ struct CurrentWeatherCard: View {
     }
 }
 
+
 // MARK: - Selected Day Weather Card
 
 struct SelectedWeatherCard: View {
@@ -765,7 +1003,7 @@ struct SelectedWeatherCard: View {
 
     private var forecastDayCard: some View {
 
-        HStack(spacing: 16) {
+        HStack(spacing: 12) {
 
             VStack(
                 alignment: .leading,
@@ -782,7 +1020,7 @@ struct SelectedWeatherCard: View {
                     .white.opacity(0.85)
                 )
 
-                HStack(spacing: 12) {
+                HStack(spacing: 10) {
 
                     Text(
                         temperatureText(
@@ -791,7 +1029,7 @@ struct SelectedWeatherCard: View {
                     )
                     .font(
                         .system(
-                            size: 60,
+                            size: 52,
                             weight: .bold
                         )
                     )
@@ -803,7 +1041,7 @@ struct SelectedWeatherCard: View {
                             )
                     )
                     .font(
-                        .system(size: 48)
+                        .system(size: 42)
                     )
                     .symbolRenderingMode(
                         .multicolor
@@ -816,19 +1054,22 @@ struct SelectedWeatherCard: View {
                     )
                 )
                 .font(.title3)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
             }
+            .layoutPriority(1)
 
-            Spacer()
+            Spacer(minLength: 4)
 
             Divider()
                 .background(
                     .white.opacity(0.35)
                 )
-                .frame(height: 110)
+                .frame(height: 105)
 
             VStack(
                 alignment: .leading,
-                spacing: 11
+                spacing: 10
             ) {
 
                 Text(
@@ -840,6 +1081,7 @@ struct SelectedWeatherCard: View {
                 )
 
                 if showRainInformation {
+
                     HStack(spacing: 6) {
 
                         Image(
@@ -855,8 +1097,9 @@ struct SelectedWeatherCard: View {
             }
             .font(.subheadline)
         }
+        .frame(maxWidth: .infinity)
         .foregroundStyle(.white)
-        .padding(20)
+        .padding(18)
         .glassCard()
     }
 
@@ -949,6 +1192,7 @@ struct SelectedWeatherCard: View {
     }
 }
 
+
 // MARK: - Hourly Forecast
 
 struct HourlyForecastCard: View {
@@ -1012,6 +1256,7 @@ struct HourlyForecastCard: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity)
         .foregroundStyle(.white)
         .padding(18)
         .glassCard()
@@ -1052,6 +1297,7 @@ struct HourlyForecastCard: View {
         )
     }
 }
+
 
 struct HourlyWeatherItem: View {
 
@@ -1117,6 +1363,7 @@ struct HourlyWeatherItem: View {
         return "\(Int(converted.rounded()))°"
     }
 }
+
 
 // MARK: - Seven Day Forecast
 
@@ -1195,6 +1442,7 @@ struct WeeklyForecastCard: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity)
         .foregroundStyle(.white)
         .padding(18)
         .glassCard()
@@ -1213,6 +1461,7 @@ struct WeeklyForecastCard: View {
         return Array(0..<count)
     }
 }
+
 
 struct DailyForecastItem: View {
 
@@ -1302,6 +1551,7 @@ struct DailyForecastItem: View {
     }
 }
 
+
 // MARK: - Weather Details
 
 struct WeatherDetailsCard: View {
@@ -1326,8 +1576,13 @@ struct WeatherDetailsCard: View {
 
             LazyVGrid(
                 columns: [
-                    GridItem(.flexible()),
-                    GridItem(.flexible())
+                    GridItem(
+                        .flexible(),
+                        spacing: 12
+                    ),
+                    GridItem(
+                        .flexible()
+                    )
                 ],
                 spacing: 12
             ) {
@@ -1375,6 +1630,7 @@ struct WeatherDetailsCard: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity)
         .padding(18)
         .glassCard()
     }
@@ -1395,6 +1651,7 @@ struct WeatherDetailsCard: View {
                 .current
                 .europeanAqi
         else {
+
             return "--"
         }
 
@@ -1431,6 +1688,9 @@ struct WeatherDetailsCard: View {
     }
 }
 
+
+// MARK: - Weather Metric Card
+
 struct WeatherMetricCard: View {
 
     let icon: String
@@ -1439,13 +1699,13 @@ struct WeatherMetricCard: View {
 
     var body: some View {
 
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
 
             Image(systemName: icon)
-                .font(.title2)
+                .font(.title3)
                 .frame(
-                    width: 38,
-                    height: 38
+                    width: 32,
+                    height: 32
                 )
 
             VStack(
@@ -1455,18 +1715,26 @@ struct WeatherMetricCard: View {
 
                 Text(title)
                     .font(.caption)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
                     .foregroundStyle(
                         .white.opacity(0.75)
                     )
 
                 Text(value)
                     .font(.headline)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
             }
 
-            Spacer()
+            Spacer(minLength: 0)
         }
+        .frame(
+            maxWidth: .infinity,
+            alignment: .leading
+        )
         .foregroundStyle(.white)
-        .padding(14)
+        .padding(12)
         .background(
             .white.opacity(0.10)
         )
@@ -1477,6 +1745,7 @@ struct WeatherMetricCard: View {
         )
     }
 }
+
 
 // MARK: - Bottom Navigation
 
@@ -1493,7 +1762,7 @@ struct BottomWeatherTabBar: View {
 
     var body: some View {
 
-        HStack {
+        HStack(spacing: 4) {
 
             ForEach(
                 tabs.indices,
@@ -1518,6 +1787,8 @@ struct BottomWeatherTabBar: View {
                             tabs[index].1
                         )
                         .font(.caption2)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
                     }
                     .foregroundStyle(
                         selectedTab == index
@@ -1546,6 +1817,7 @@ struct BottomWeatherTabBar: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity)
         .padding(8)
         .background(
             .ultraThinMaterial
@@ -1568,6 +1840,7 @@ struct BottomWeatherTabBar: View {
         .padding(.bottom, 8)
     }
 }
+
 
 // MARK: - Glass Modifier
 
@@ -1606,6 +1879,7 @@ extension View {
     }
 }
 
+
 // MARK: - Temperature Conversion
 
 func convertedTemperature(
@@ -1616,12 +1890,15 @@ func convertedTemperature(
     switch unit {
 
     case .celsius:
+
         return celsius
 
     case .fahrenheit:
+
         return (celsius * 9 / 5) + 32
     }
 }
+
 
 // MARK: - Weather Helpers
 
@@ -1666,6 +1943,7 @@ func weatherIcon(
     }
 }
 
+
 func displayHour(
     _ rawDate: String
 ) -> String {
@@ -1681,6 +1959,7 @@ func displayHour(
             from: rawDate
         )
     else {
+
         return rawDate
     }
 
@@ -1691,6 +1970,7 @@ func displayHour(
         from: date
     )
 }
+
 
 func weekday(
     from rawDate: String
@@ -1707,6 +1987,7 @@ func weekday(
             from: rawDate
         )
     else {
+
         return rawDate
     }
 
@@ -1717,6 +1998,7 @@ func weekday(
         from: date
     )
 }
+
 
 func weekdayFull(
     from rawDate: String
@@ -1733,6 +2015,7 @@ func weekdayFull(
             from: rawDate
         )
     else {
+
         return rawDate
     }
 
@@ -1743,6 +2026,7 @@ func weekdayFull(
         from: date
     )
 }
+
 
 func weatherDescription(
     _ code: Int
@@ -1788,6 +2072,7 @@ func weatherDescription(
     }
 }
 
+
 func airQualityText(
     _ aqi: Int
 ) -> String {
@@ -1814,6 +2099,7 @@ func airQualityText(
     }
 }
 
+
 func airQualityColor(
     _ aqi: Int
 ) -> Color {
@@ -1837,6 +2123,8 @@ func airQualityColor(
     }
 }
 
+
 #Preview {
+
     ContentView()
 }
